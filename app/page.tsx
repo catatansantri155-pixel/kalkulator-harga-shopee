@@ -426,19 +426,43 @@ const DEFAULT_PRODUCT =
 function HelpButton({ title, text }: { title: string; text: string }) {
   const [open, setOpen] = useState(false);
   const [popoverSide, setPopoverSide] = useState<"left" | "right">("right");
-  const [popoverWidth, setPopoverWidth] = useState(240);
+  const [popoverWidth, setPopoverWidth] = useState(220);
+  const [mobileAnchor, setMobileAnchor] = useState<{
+    left: number;
+    top: number;
+    placement: "above" | "below";
+    width: number;
+  } | null>(null);
+  const helpRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
+    const closeOutside = (event: PointerEvent) => {
+      if (
+        helpRef.current &&
+        !helpRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    const closeOnViewportChange = () => setOpen(false);
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", closeOnViewportChange);
+    window.addEventListener("scroll", closeOnViewportChange);
+    document.addEventListener("pointerdown", closeOutside);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", closeOnViewportChange);
+      window.removeEventListener("scroll", closeOnViewportChange);
+      document.removeEventListener("pointerdown", closeOutside);
+    };
   }, [open]);
 
   return (
-    <span className="help-wrap">
+    <span className="help-wrap" ref={helpRef}>
       <button
         aria-expanded={open}
         aria-label={`Penjelasan ${title}`}
@@ -451,8 +475,28 @@ function HelpButton({ title, text }: { title: string; text: string }) {
           const roomLeft = bounds.left - 14;
           const nextSide = roomRight >= roomLeft ? "right" : "left";
           const availableRoom = nextSide === "right" ? roomRight : roomLeft;
-          setPopoverSide(nextSide);
-          setPopoverWidth(Math.min(270, Math.max(156, availableRoom - 8)));
+          const isMobile = window.matchMedia("(max-width: 720px)").matches;
+
+          if (isMobile) {
+            const width = Math.min(220, window.innerWidth - 24);
+            const halfWidth = width / 2;
+            const triggerCenter = bounds.left + bounds.width / 2;
+            setMobileAnchor({
+              left: Math.min(
+                window.innerWidth - halfWidth - 12,
+                Math.max(halfWidth + 12, triggerCenter),
+              ),
+              top: bounds.top > 160 ? bounds.top - 9 : bounds.bottom + 9,
+              placement: bounds.top > 160 ? "above" : "below",
+              width,
+            });
+          } else {
+            setMobileAnchor(null);
+            setPopoverSide(nextSide);
+            setPopoverWidth(
+              Math.min(230, Math.max(156, availableRoom - 8)),
+            );
+          }
           setOpen((current) => !current);
         }}
         type="button"
@@ -460,41 +504,38 @@ function HelpButton({ title, text }: { title: string; text: string }) {
         ?
       </button>
       {open ? (
-        <>
+        <span
+          className={`help-popover ${
+            mobileAnchor
+              ? `mobile-anchor ${mobileAnchor.placement}`
+              : popoverSide
+          }`}
+          role="dialog"
+          aria-label={title}
+          style={{
+            width: `${mobileAnchor?.width ?? popoverWidth}px`,
+            ...(mobileAnchor
+              ? { left: `${mobileAnchor.left}px`, top: `${mobileAnchor.top}px` }
+              : {}),
+          }}
+        >
+          <span>
+            <strong>{title}</strong>
+            <small>{text}</small>
+          </span>
           <button
-            aria-label={`Tutup penjelasan ${title}`}
-            className="help-modal-backdrop"
+            aria-label="Tutup penjelasan"
+            className="help-close"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               setOpen(false);
             }}
             type="button"
-          />
-          <span
-            className={`help-popover ${popoverSide}`}
-            role="dialog"
-            aria-label={title}
-            style={{ width: `${popoverWidth}px` }}
           >
-            <span>
-              <strong>{title}</strong>
-              <small>{text}</small>
-            </span>
-            <button
-              aria-label="Tutup penjelasan"
-              className="help-close"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setOpen(false);
-              }}
-              type="button"
-            >
-              ×
-            </button>
-          </span>
-        </>
+            ×
+          </button>
+        </span>
       ) : null}
     </span>
   );
