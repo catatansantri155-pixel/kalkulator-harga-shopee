@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  PRODUCT_FEES,
+  searchProductFees,
+  type ProductFee,
+} from "./shopee-fees";
 
 const rupiah = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -32,7 +37,8 @@ type IconName =
   | "reset"
   | "save"
   | "sparkles"
-  | "arrow";
+  | "arrow"
+  | "search";
 
 type Scenario = {
   id: string;
@@ -92,10 +98,11 @@ const ONBOARDING_STEPS: Array<{
   {
     icon: "category",
     eyebrow: "Langkah 2 dari 3",
-    title: "Sesuaikan kategori & program",
+    title: "Cari produk & cek tarif",
     description:
-      "Pilih kategori terdekat, lalu aktifkan hanya program Shopee yang sedang diikuti produk.",
-    detail: "Tombol tanda tanya menjelaskan fungsi dan dasar setiap biaya.",
+      "Ketik nama produk agar biaya admin dan layanan muncul otomatis, lalu aktifkan program yang benar-benar diikuti.",
+    detail:
+      "Anda masih bisa mengubah tarif manual jika rincian Seller Centre berbeda.",
   },
   {
     icon: "result",
@@ -206,6 +213,12 @@ function AppIcon({
           <path d="M5 12h14M14 7l5 5-5 5" />
         </>
       ) : null}
+      {name === "search" ? (
+        <>
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m15.5 15.5 4 4" />
+        </>
+      ) : null}
     </svg>
   );
 }
@@ -222,9 +235,10 @@ const PAGE_COPY: Record<PageId, { eyebrow: string; title: string; description: s
     description: "Masukkan modal, potongan, program toko, dan biaya operasional per produk.",
   },
   category: {
-    eyebrow: "Preset tarif",
-    title: "Kategori produk",
-    description: "Pilih kelompok produk untuk mengisi estimasi biaya administrasi secara cepat.",
+    eyebrow: "Pencarian tarif",
+    title: "Cari produk & biaya",
+    description:
+      "Cari nama produk untuk mengisi biaya administrasi dan layanan secara otomatis.",
   },
   ads: {
     eyebrow: "Performa promosi",
@@ -249,7 +263,8 @@ const CATEGORY_PRESETS = [
     icon: "PA",
     name: "Pakaian & Fashion",
     rate: 10,
-    range: "umumnya 10%",
+    serviceRate: 8,
+    range: "admin 4,25%–10%",
     examples: "Atasan, bawahan, hijab, sepatu, tas, aksesori fashion",
     note: "Kelompok fashion pada umumnya masuk tarif admin tertinggi.",
   },
@@ -258,7 +273,8 @@ const CATEGORY_PRESETS = [
     icon: "FM",
     name: "FMCG",
     rate: 10,
-    range: "umumnya 10%",
+    serviceRate: 6,
+    range: "admin 6,5%–10%",
     examples: "Makanan, minuman, kebutuhan rumah tangga, produk harian",
     note: "Preset konservatif untuk barang konsumsi cepat habis.",
   },
@@ -267,6 +283,7 @@ const CATEGORY_PRESETS = [
     icon: "BC",
     name: "Kecantikan & Personal Care",
     rate: 10,
+    serviceRate: 5.5,
     range: "9,5%–10%",
     examples: "Makeup, perawatan tubuh, rambut, parfum, skincare tertentu",
     note: "Sebagian subkategori perawatan dapat memiliki tarif berbeda.",
@@ -276,6 +293,7 @@ const CATEGORY_PRESETS = [
     icon: "HM",
     name: "Rumah & Lifestyle",
     rate: 10,
+    serviceRate: 8,
     range: "8,25%–10%",
     examples: "Dapur, dekorasi, alat rumah, hobi, alat tulis",
     note: "Gunakan 10% untuk simulasi aman jika subkategori belum diketahui.",
@@ -284,7 +302,8 @@ const CATEGORY_PRESETS = [
     id: "electronics",
     icon: "EL",
     name: "Elektronik & Aksesori",
-    rate: 9,
+    rate: 9.5,
+    serviceRate: 5.5,
     range: "5,25%–9,5%",
     examples: "Aksesori ponsel, audio, komputer, kamera, perangkat elektronik",
     note: "Rentangnya lebar; perangkat high-end sering lebih rendah daripada aksesori.",
@@ -293,8 +312,9 @@ const CATEGORY_PRESETS = [
     id: "health",
     icon: "KS",
     name: "Kesehatan & Suplemen",
-    rate: 6.5,
-    range: "6,5%–6,75%",
+    rate: 9.5,
+    serviceRate: 6,
+    range: "admin 6,5%–10%",
     examples: "Vitamin, suplemen, alat kesehatan tertentu, nutrisi",
     note: "Pastikan kembali izin dan subkategori produk di Seller Centre.",
   },
@@ -302,8 +322,9 @@ const CATEGORY_PRESETS = [
     id: "baby",
     icon: "IB",
     name: "Ibu, Bayi & Formula",
-    rate: 6.75,
-    range: "6,5%–6,75%",
+    rate: 9.5,
+    serviceRate: 5.5,
+    range: "admin 6,5%–10%",
     examples: "Susu formula, makanan bayi, perlengkapan ibu dan bayi tertentu",
     note: "Produk non-formula dapat masuk tarif subkategori yang berbeda.",
   },
@@ -311,7 +332,8 @@ const CATEGORY_PRESETS = [
     id: "automotive",
     icon: "OT",
     name: "Otomotif & Perkakas",
-    rate: 8.25,
+    rate: 9.5,
+    serviceRate: 7.5,
     range: "8,25%–10%",
     examples: "Aksesori kendaraan, perkakas, perawatan kendaraan",
     note: "Gunakan tarif lebih tinggi bila jenis produk belum pasti.",
@@ -321,6 +343,7 @@ const CATEGORY_PRESETS = [
     icon: "LM",
     name: "Logam Mulia & Premium",
     rate: 4.25,
+    serviceRate: 2,
     range: "4,25%–5,25%",
     examples: "Logam mulia, perhiasan berharga, elektronik high-end tertentu",
     note: "Preset hanya untuk subkategori premium yang benar-benar sesuai.",
@@ -329,14 +352,24 @@ const CATEGORY_PRESETS = [
     id: "digital",
     icon: "DG",
     name: "Produk Digital",
-    rate: 2.5,
-    range: "umumnya 2,5%",
+    rate: 9.5,
+    serviceRate: 5.5,
+    range: "admin 8,25%–9,5%",
     examples: "E-money, tiket, voucher, dan produk digital tertentu",
-    note: "Tidak semua produk digital dapat dijual pada kategori yang sama.",
+    note: "Voucher dan layanan umumnya berbeda dari unit kendaraan atau barang fisik.",
   },
 ];
 
-const ADMIN_RATES = [10, 9.5, 9, 8.25, 6.75, 6.5, 5.25, 4.25, 2.5, 0];
+const ADMIN_RATES = [
+  11.7, 10.45, 10.2, 10, 9.95, 9.5, 9, 8.25, 7.7, 7.2, 6.75, 6.5,
+  6.2, 5.25, 4.7, 4.25, 4.2, 3.2, 2.5, 0,
+];
+const SERVICE_RATES = [
+  9.5, 9, 8, 7.5, 7, 6.5, 6, 5.5, 5, 3.5, 2.5, 2, 1, 0,
+];
+const DEFAULT_PRODUCT =
+  PRODUCT_FEES.find((product) => product.name === "Makanan Ringan") ||
+  PRODUCT_FEES[0];
 
 function HelpButton({ title, text }: { title: string; text: string }) {
   const [open, setOpen] = useState(false);
@@ -390,6 +423,25 @@ function NumberField({
   max,
   step = 1,
 }: NumberFieldProps) {
+  const [draft, setDraft] = useState(String(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setDraft(String(value));
+  }, [value]);
+
+  const finishEditing = () => {
+    focused.current = false;
+    const parsed = Number(draft);
+    const finiteValue = Number.isFinite(parsed) ? parsed : 0;
+    const nextValue = Math.min(
+      max ?? Number.POSITIVE_INFINITY,
+      Math.max(min, finiteValue),
+    );
+    onChange(nextValue);
+    setDraft(String(nextValue));
+  };
+
   return (
     <label className="field">
       <span className="field-copy">
@@ -411,11 +463,177 @@ function NumberField({
           max={max}
           step={step}
           type="number"
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(event) => onChange(Number(event.target.value) || 0)}
+          value={draft}
+          onFocus={() => {
+            focused.current = true;
+          }}
+          onBlur={finishEditing}
+          onChange={(event) => {
+            const nextDraft = event.target.value;
+            setDraft(nextDraft);
+            if (nextDraft === "") {
+              onChange(0);
+              return;
+            }
+            const nextValue = Number(nextDraft);
+            if (Number.isFinite(nextValue)) onChange(nextValue);
+          }}
         />
       </span>
     </label>
+  );
+}
+
+function ProductSearch({
+  selected,
+  sellerType,
+  specialSize,
+  onSelect,
+}: {
+  selected?: ProductFee;
+  sellerType: SellerType;
+  specialSize: boolean;
+  onSelect: (product: ProductFee) => void;
+}) {
+  const [query, setQuery] = useState(selected?.name || "");
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const results = useMemo(() => searchProductFees(query), [query]);
+
+  const choose = (product: ProductFee) => {
+    setQuery(product.name);
+    setOpen(false);
+    setHighlighted(0);
+    onSelect(product);
+  };
+
+  return (
+    <section className="product-search-card panel">
+      <div className="product-search-heading">
+        <span className="search-symbol">
+          <AppIcon name="search" size={21} />
+        </span>
+        <span>
+          <strong>Cari nama produk</strong>
+          <small>
+            Ketik produk, misalnya “mukena”, “skincare”, “laptop”, atau
+            “makanan ringan”.
+          </small>
+        </span>
+        <b>{PRODUCT_FEES.length} pilihan</b>
+      </div>
+
+      <div className="product-search-box">
+        <AppIcon name="search" size={19} />
+        <input
+          aria-autocomplete="list"
+          aria-controls="product-fee-results"
+          aria-expanded={open}
+          aria-label="Cari produk dan biaya Shopee"
+          autoComplete="off"
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+            setHighlighted(0);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setOpen(true);
+              setHighlighted((current) =>
+                Math.min(current + 1, Math.max(0, results.length - 1)),
+              );
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setHighlighted((current) => Math.max(0, current - 1));
+            } else if (event.key === "Enter" && results[highlighted]) {
+              event.preventDefault();
+              choose(results[highlighted]);
+            } else if (event.key === "Escape") {
+              setOpen(false);
+            }
+          }}
+          placeholder="Cari produk atau subkategori…"
+          role="combobox"
+          type="search"
+          value={query}
+        />
+        {query ? (
+          <button
+            aria-label="Hapus pencarian"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setQuery("");
+              setOpen(true);
+              setHighlighted(0);
+            }}
+            type="button"
+          >
+            ×
+          </button>
+        ) : null}
+
+        {open ? (
+          <div
+            className="product-search-results"
+            id="product-fee-results"
+            role="listbox"
+          >
+            {results.length ? (
+              results.map((product, index) => {
+                const admin =
+                  sellerType === "mall"
+                    ? product.adminMall
+                    : product.adminRegular;
+                const service = specialSize
+                  ? product.serviceSpecial
+                  : product.serviceRegular;
+
+                return (
+                  <button
+                    aria-selected={selected?.id === product.id}
+                    className={highlighted === index ? "highlighted" : ""}
+                    key={product.id}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setHighlighted(index)}
+                    onClick={() => choose(product)}
+                    role="option"
+                    type="button"
+                  >
+                    <span>
+                      <strong>{product.name}</strong>
+                      <small>{product.path}</small>
+                    </span>
+                    <span className="result-fees">
+                      <b>{admin.toLocaleString("id-ID")}% admin</b>
+                      <em>{service.toLocaleString("id-ID")}% layanan</em>
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="empty-product-search">
+                <strong>Produk belum ditemukan</strong>
+                <small>
+                  Coba nama yang lebih umum, lalu gunakan tarif manual jika
+                  subkategori Shopee Anda belum tersedia.
+                </small>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="search-reference">
+        <span>Data biaya Shopee 2026</span>
+        <small>
+          Admin final dan layanan Gratis Ongkir XTRA dipisahkan agar tidak
+          terhitung ganda atau tertukar.
+        </small>
+      </div>
+    </section>
   );
 }
 
@@ -512,8 +730,13 @@ export default function Home() {
   const [mode, setMode] = useState<PriceMode>("auto");
   const [sellerType, setSellerType] = useState<SellerType>("nonstar");
   const [newSellerExempt, setNewSellerExempt] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("fmcg");
-  const [adminRate, setAdminRate] = useState(10);
+  const [selectedCategory, setSelectedCategory] = useState(
+    DEFAULT_PRODUCT.groupId,
+  );
+  const [selectedProductId, setSelectedProductId] = useState(
+    DEFAULT_PRODUCT.id,
+  );
+  const [adminRate, setAdminRate] = useState(DEFAULT_PRODUCT.adminRegular);
 
   const [hpp, setHpp] = useState(16350);
   const [packing, setPacking] = useState(900);
@@ -527,7 +750,9 @@ export default function Home() {
   const [voucher, setVoucher] = useState(0);
 
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(true);
-  const [freeShippingRate, setFreeShippingRate] = useState(6);
+  const [freeShippingRate, setFreeShippingRate] = useState(
+    DEFAULT_PRODUCT.serviceRegular,
+  );
   const [specialSize, setSpecialSize] = useState(false);
   const [promoEnabled, setPromoEnabled] = useState(false);
   const [affiliateRate, setAffiliateRate] = useState(3);
@@ -564,6 +789,9 @@ export default function Home() {
   const currentCategory =
     CATEGORY_PRESETS.find((item) => item.id === selectedCategory) ||
     CATEGORY_PRESETS[1];
+  const currentProduct = PRODUCT_FEES.find(
+    (product) => product.id === selectedProductId,
+  );
 
   const adBudgetTotal = adDailyBudget * Math.max(1, adDays);
   const adCostPerOrder = adOrders > 0 ? adActualSpend / adOrders : 0;
@@ -794,9 +1022,49 @@ export default function Home() {
     targetMargin > 0 || mode === "manual",
   ].filter(Boolean).length;
 
-  const applyCategory = (id: string, rate: number) => {
+  const applyProduct = (product: ProductFee) => {
+    setSelectedProductId(product.id);
+    setSelectedCategory(product.groupId);
+    setAdminRate(
+      sellerType === "mall" ? product.adminMall : product.adminRegular,
+    );
+    setFreeShippingRate(
+      specialSize ? product.serviceSpecial : product.serviceRegular,
+    );
+    setToast(`${product.name} diterapkan`);
+  };
+
+  const changeSellerType = (nextSellerType: SellerType) => {
+    setSellerType(nextSellerType);
+    if (currentProduct) {
+      setAdminRate(
+        nextSellerType === "mall"
+          ? currentProduct.adminMall
+          : currentProduct.adminRegular,
+      );
+    }
+  };
+
+  const changeSpecialSize = (nextSpecialSize: boolean) => {
+    setSpecialSize(nextSpecialSize);
+    if (currentProduct) {
+      setFreeShippingRate(
+        nextSpecialSize
+          ? currentProduct.serviceSpecial
+          : currentProduct.serviceRegular,
+      );
+    }
+  };
+
+  const applyCategory = (
+    id: string,
+    rate: number,
+    serviceRate: number,
+  ) => {
+    setSelectedProductId("");
     setSelectedCategory(id);
     setAdminRate(rate);
+    setFreeShippingRate(serviceRate);
     setToast("Preset kategori diterapkan");
   };
 
@@ -804,8 +1072,9 @@ export default function Home() {
     setMode("auto");
     setSellerType("nonstar");
     setNewSellerExempt(false);
-    setSelectedCategory("fmcg");
-    setAdminRate(10);
+    setSelectedCategory(DEFAULT_PRODUCT.groupId);
+    setSelectedProductId(DEFAULT_PRODUCT.id);
+    setAdminRate(DEFAULT_PRODUCT.adminRegular);
     setHpp(16350);
     setPacking(900);
     setOperational(500);
@@ -817,7 +1086,7 @@ export default function Home() {
     setProductDiscount(0);
     setVoucher(0);
     setFreeShippingEnabled(true);
-    setFreeShippingRate(6);
+    setFreeShippingRate(DEFAULT_PRODUCT.serviceRegular);
     setSpecialSize(false);
     setPromoEnabled(false);
     setAffiliateRate(3);
@@ -846,6 +1115,7 @@ export default function Home() {
     sellerType,
     newSellerExempt,
     selectedCategory,
+    selectedProductId,
     adminRate,
     hpp,
     packing,
@@ -884,7 +1154,9 @@ export default function Home() {
   const saveScenario = () => {
     const next: Scenario = {
       id: `${Date.now()}`,
-      name: `${currentCategory.name} ${savedScenarios.length + 1}`,
+      name: `${currentProduct?.name || currentCategory.name} ${
+        savedScenarios.length + 1
+      }`,
       savedAt: new Date().toISOString(),
       data: getScenarioData(),
     };
@@ -916,6 +1188,7 @@ export default function Home() {
     setSellerType((data.sellerType as SellerType) || "nonstar");
     setNewSellerExempt(booleanValue("newSellerExempt", false));
     setSelectedCategory(String(data.selectedCategory || "fmcg"));
+    setSelectedProductId(String(data.selectedProductId || ""));
     setAdminRate(numberValue("adminRate", 10));
     setHpp(numberValue("hpp", 16350));
     setPacking(numberValue("packing", 900));
@@ -970,8 +1243,10 @@ export default function Home() {
   const exportCsv = () => {
     const rows = [
       ["Komponen", "Nilai per item"],
+      ["Produk", currentProduct?.name || "Preset kategori umum"],
       ["Kategori", currentCategory.name],
       ["Tarif admin", `${effectiveAdminRate}%`],
+      ["Tarif layanan Gratis Ongkir XTRA", `${freeShippingRate}%`],
       ["Harga jual", result.price],
       ["Net sale", result.netSale],
       ["HPP", hpp],
@@ -1115,7 +1390,8 @@ export default function Home() {
           <span>Harga aman saat ini</span>
           <strong>{rupiah.format(sellingPrice)}</strong>
           <small>
-            {currentCategory.name} · Admin {effectiveAdminRate}%
+            {currentProduct?.name || currentCategory.name} · Admin{" "}
+            {effectiveAdminRate}% · Layanan {freeShippingRate}%
           </small>
           <button onClick={() => navigate("result")} type="button">
             Buka hasil
@@ -1227,9 +1503,9 @@ export default function Home() {
               </div>
               <div className="hero-side">
                 <span>Produk aktif</span>
-                <strong>{currentCategory.name}</strong>
+                <strong>{currentProduct?.name || currentCategory.name}</strong>
                 <small>
-                  Admin {effectiveAdminRate}% · Iklan{" "}
+                  Admin {effectiveAdminRate}% · Layanan {freeShippingRate}% · Iklan{" "}
                   {rupiah.format(allocatedAdCost)}/pesanan
                 </small>
                 <button onClick={() => navigate("result")} type="button">
@@ -1280,8 +1556,10 @@ export default function Home() {
                     {
                       page: "category" as PageId,
                       number: "02",
-                      title: "Pilih kategori",
-                      text: `${currentCategory.name} · ${adminRate}%`,
+                      title: "Cari produk & kategori",
+                      text: `${
+                        currentProduct?.name || currentCategory.name
+                      } · admin ${adminRate}% · layanan ${freeShippingRate}%`,
                       done: Boolean(selectedCategory),
                     },
                     {
@@ -1414,7 +1692,7 @@ export default function Home() {
                   <select
                     value={sellerType}
                     onChange={(event) =>
-                      setSellerType(event.target.value as SellerType)
+                      changeSellerType(event.target.value as SellerType)
                     }
                   >
                     <option value="nonstar">Non-Star</option>
@@ -1549,9 +1827,9 @@ export default function Home() {
                       />
                       <ToggleField
                         label="Produk ukuran khusus"
-                        hint="Menggunakan batas maksimum Rp60.000 per kuantitas."
+                        hint="Tarif kategori dan batas maksimum berubah menjadi skema ukuran khusus, maksimal Rp60.000 per kuantitas."
                         enabled={specialSize}
-                        onChange={setSpecialSize}
+                        onChange={changeSpecialSize}
                       />
                     </>
                   ) : null}
@@ -1639,17 +1917,30 @@ export default function Home() {
 
         {activePage === "category" ? (
           <section className="app-page">
+            <ProductSearch
+              key={currentProduct?.id || "manual-category"}
+              selected={currentProduct}
+              sellerType={sellerType}
+              specialSize={specialSize}
+              onSelect={applyProduct}
+            />
+
             <article className="category-summary panel">
               <div className="category-symbol">{currentCategory.icon}</div>
               <div>
-                <span>Kategori terpilih</span>
-                <strong>{currentCategory.name}</strong>
-                <small>{currentCategory.examples}</small>
+                <span>Produk & kategori terpilih</span>
+                <strong>{currentProduct?.name || currentCategory.name}</strong>
+                <small>
+                  {currentProduct?.path || currentCategory.examples}
+                </small>
               </div>
               <div className="category-rate">
-                <span>Admin dipakai</span>
+                <span>Biaya otomatis dipakai</span>
                 <strong>{adminRate.toLocaleString("id-ID")}%</strong>
-                <small>{currentCategory.range}</small>
+                <small>
+                  Admin · layanan{" "}
+                  {freeShippingRate.toLocaleString("id-ID")}%
+                </small>
               </div>
               <label>
                 <span>Ubah tarif manual</span>
@@ -1664,23 +1955,53 @@ export default function Home() {
                   ))}
                 </select>
               </label>
+              <label>
+                <span>Ubah layanan manual</span>
+                <select
+                  value={freeShippingRate}
+                  onChange={(event) =>
+                    setFreeShippingRate(Number(event.target.value))
+                  }
+                >
+                  {SERVICE_RATES.map((rate) => (
+                    <option value={rate} key={rate}>
+                      {rate.toLocaleString("id-ID")}%
+                    </option>
+                  ))}
+                </select>
+              </label>
             </article>
 
             <div className="notice-card">
               <span>i</span>
               <p>
-                <strong>Tarif mengikuti subkategori, bukan hanya nama kategori besar.</strong>
-                Preset di bawah membantu estimasi awal. Cocokkan angka final dengan
-                kategori produk yang tampil di Seller Centre sebelum memasang harga.
+                <strong>
+                  Tarif mengikuti subkategori dan ukuran produk.
+                </strong>
+                Hasil pencarian mengisi Biaya Administrasi Final serta layanan
+                Gratis Ongkir XTRA. Produk ukuran khusus memakai tarif layanan
+                lebih tinggi. Cocokkan kembali dengan kategori yang tampil di
+                Seller Centre bila produk Anda berada di subkategori yang sangat
+                spesifik.
               </p>
             </div>
 
             <section className="category-grid">
               {CATEGORY_PRESETS.map((category) => (
                 <button
-                  className={selectedCategory === category.id ? "selected" : ""}
+                  className={
+                    !currentProduct && selectedCategory === category.id
+                      ? "selected"
+                      : ""
+                  }
                   key={category.id}
-                  onClick={() => applyCategory(category.id, category.rate)}
+                  onClick={() =>
+                    applyCategory(
+                      category.id,
+                      category.rate,
+                      category.serviceRate,
+                    )
+                  }
                   type="button"
                 >
                   <span className="category-card-top">
@@ -1691,9 +2012,9 @@ export default function Home() {
                   <small>{category.examples}</small>
                   <span className="category-note">{category.note}</span>
                   <span className="apply-copy">
-                    {selectedCategory === category.id
+                    {!currentProduct && selectedCategory === category.id
                       ? "✓ Sedang digunakan"
-                      : `Gunakan preset ${category.rate}%`}
+                      : `Admin ${category.rate}% · layanan ${category.serviceRate}%`}
                   </span>
                 </button>
               ))}
@@ -1966,9 +2287,11 @@ export default function Home() {
 
                 <section className="summary-grid">
                   <article>
-                    <span>Kategori</span>
-                    <strong>{currentCategory.name}</strong>
-                    <small>Admin {effectiveAdminRate}%</small>
+                    <span>Produk</span>
+                    <strong>{currentProduct?.name || currentCategory.name}</strong>
+                    <small>
+                      Admin {effectiveAdminRate}% · layanan {freeShippingRate}%
+                    </small>
                   </article>
                   <article>
                     <span>Biaya penjual</span>
@@ -2065,7 +2388,9 @@ export default function Home() {
                   <ResultRow
                     label={`Administrasi (${effectiveAdminRate}%)`}
                     value={result.admin}
-                    help={`${currentCategory.name}; preset dapat disesuaikan mengikuti subkategori Seller Centre.`}
+                    help={`${
+                      currentProduct?.name || currentCategory.name
+                    }; tarif tetap dapat disesuaikan mengikuti subkategori di Seller Centre.`}
                   />
                   <ResultRow
                     label={`Gratis Ongkir XTRA (${freeShippingRate}%)`}
@@ -2145,8 +2470,8 @@ export default function Home() {
                   </p>
                   <div className="save-preview">
                     <span>
-                      {currentCategory.name}
-                      <small>Kategori</small>
+                      {currentProduct?.name || currentCategory.name}
+                      <small>Produk</small>
                     </span>
                     <span>
                       {rupiah.format(sellingPrice)}
@@ -2224,19 +2549,19 @@ export default function Home() {
               <div className="policy-grid">
                 <span>
                   <b>2,5%–10%</b>
-                  Admin sesuai kategori
+                  Admin reguler
+                </span>
+                <span>
+                  <b>1%–8%</b>
+                  Layanan ukuran biasa
+                </span>
+                <span>
+                  <b>2,5%–9,5%</b>
+                  Layanan ukuran khusus
                 </span>
                 <span>
                   <b>Rp1.250</b>
                   Proses per transaksi
-                </span>
-                <span>
-                  <b>6,5%</b>
-                  Promo XTRA+
-                </span>
-                <span>
-                  <b>0,5%</b>
-                  Simulasi PPh 22
                 </span>
               </div>
               <div className="source-links">
@@ -2246,6 +2571,13 @@ export default function Home() {
                   rel="noreferrer"
                 >
                   Rincian biaya per kategori
+                </a>
+                <a
+                  href="https://seller.shopee.co.id/edu/article/7216"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Tarif layanan Gratis Ongkir
                 </a>
                 <a
                   href="https://help.shopee.co.id/portal/4/article/71187-Syarat-Layanan-Shopee"
