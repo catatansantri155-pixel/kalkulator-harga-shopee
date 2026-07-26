@@ -257,6 +257,58 @@ const PAGE_COPY: Record<PageId, { eyebrow: string; title: string; description: s
   },
 };
 
+const PAGE_MASCOT_COPY: Record<
+  Exclude<PageId, "dashboard">,
+  {
+    eyebrow: string;
+    title: string;
+    description: string;
+    action: string;
+    target: PageId;
+  }
+> = {
+  input: {
+    eyebrow: "Kiko bantu mulai",
+    title: "Catat biaya yang benar-benar keluar.",
+    description:
+      "Isi HPP, kemasan, operasional, voucher, dan diskon toko. Kosongkan biaya yang memang tidak ada.",
+    action: "Lanjut cari produk",
+    target: "category",
+  },
+  category: {
+    eyebrow: "Pencarian pintar",
+    title: "Nama produk menentukan tarif yang dipakai.",
+    description:
+      "Cari produk paling spesifik. Admin dan layanan akan terisi otomatis, tetapi tetap cocokkan dengan Seller Centre.",
+    action: "Lanjut ke iklan",
+    target: "ads",
+  },
+  ads: {
+    eyebrow: "Kiko cek promosi",
+    title: "Iklan perlu dihitung per pesanan.",
+    description:
+      "Masukkan dana terpakai dan jumlah pesanan agar biaya iklan tidak diam-diam menghabiskan margin.",
+    action: "Lihat hasil",
+    target: "result",
+  },
+  result: {
+    eyebrow: "Ringkasan aman",
+    title: "Fokus pada laba bersih, bukan omzet.",
+    description:
+      "Periksa dana cair, titik impas, semua potongan, dan laba per item sebelum memasang harga.",
+    action: "Simpan skenario",
+    target: "scenario",
+  },
+  scenario: {
+    eyebrow: "Strategi tersimpan",
+    title: "Bandingkan sebelum memilih harga.",
+    description:
+      "Simpan versi hemat, normal, dan agresif supaya keputusan harga tidak bergantung pada tebakan.",
+    action: "Kembali ke dashboard",
+    target: "dashboard",
+  },
+};
+
 const CATEGORY_PRESETS = [
   {
     id: "fashion",
@@ -373,6 +425,8 @@ const DEFAULT_PRODUCT =
 
 function HelpButton({ title, text }: { title: string; text: string }) {
   const [open, setOpen] = useState(false);
+  const [popoverSide, setPopoverSide] = useState<"left" | "right">("right");
+  const [popoverWidth, setPopoverWidth] = useState(240);
 
   return (
     <span className="help-wrap">
@@ -383,6 +437,13 @@ function HelpButton({ title, text }: { title: string; text: string }) {
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const roomRight = window.innerWidth - bounds.right - 14;
+          const roomLeft = bounds.left - 14;
+          const nextSide = roomRight >= roomLeft ? "right" : "left";
+          const availableRoom = nextSide === "right" ? roomRight : roomLeft;
+          setPopoverSide(nextSide);
+          setPopoverWidth(Math.min(270, Math.max(156, availableRoom - 8)));
           setOpen((current) => !current);
         }}
         type="button"
@@ -390,7 +451,12 @@ function HelpButton({ title, text }: { title: string; text: string }) {
         ?
       </button>
       {open ? (
-        <span className="help-popover" role="dialog" aria-label={title}>
+        <span
+          className={`help-popover ${popoverSide}`}
+          role="dialog"
+          aria-label={title}
+          style={{ width: `${popoverWidth}px` }}
+        >
           <span>
             <strong>{title}</strong>
             <small>{text}</small>
@@ -410,6 +476,50 @@ function HelpButton({ title, text }: { title: string; text: string }) {
         </span>
       ) : null}
     </span>
+  );
+}
+
+function MascotArt({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`mascot-art ${className}`.trim()}
+    />
+  );
+}
+
+function MascotBanner({
+  eyebrow,
+  title,
+  description,
+  action,
+  compact = false,
+  onAction,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action: string;
+  compact?: boolean;
+  onAction: () => void;
+}) {
+  return (
+    <article className={`mascot-banner ${compact ? "compact" : ""}`}>
+      <span className="mascot-stage">
+        <MascotArt />
+        <i className="mascot-spark mascot-spark-one" />
+        <i className="mascot-spark mascot-spark-two" />
+      </span>
+      <span className="mascot-banner-copy">
+        <small>{eyebrow}</small>
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </span>
+      <button onClick={onAction} type="button">
+        {action}
+        <AppIcon name="arrow" size={15} />
+      </button>
+    </article>
   );
 }
 
@@ -1300,7 +1410,8 @@ export default function Home() {
               </button>
             </header>
             <div className="onboarding-visual">
-              <span>
+              <MascotArt className="onboarding-mascot" />
+              <span className="onboarding-step-icon">
                 <AppIcon name={onboarding.icon} size={31} />
               </span>
               <i />
@@ -1352,12 +1463,10 @@ export default function Home() {
           onClick={() => navigate("dashboard")}
           type="button"
         >
-          <span className="brand-mark">
-            <AppIcon name="calculator" size={19} />
-          </span>
+          <span className="brand-mark mascot-brand" aria-hidden="true" />
           <span>
             <strong>Kalkulator Cuan</strong>
-            <small>Shopee pricing workspace</small>
+            <small>Kiko · Shopee pricing</small>
           </span>
         </button>
 
@@ -1379,10 +1488,10 @@ export default function Home() {
         </nav>
 
         <button className="sidebar-guide" onClick={openOnboarding} type="button">
-          <AppIcon name="guide" size={17} />
+          <MascotArt className="sidebar-mascot" />
           <span>
-            <strong>Butuh panduan?</strong>
-            <small>Ulangi tur penggunaan</small>
+            <strong>Tanya Kiko</strong>
+            <small>Ulangi panduan penggunaan</small>
           </span>
         </button>
 
@@ -1402,12 +1511,10 @@ export default function Home() {
       <main className="app-shell">
         <header className="topbar">
           <div className="mobile-brand">
-            <span className="brand-mark">
-              <AppIcon name="calculator" size={17} />
-            </span>
+            <span className="brand-mark mascot-brand" aria-hidden="true" />
             <span>
               <strong>{pageCopy.title}</strong>
-              <small>Kalkulator Harga Shopee</small>
+              <small>Kiko · Kalkulator Shopee</small>
             </span>
           </div>
 
@@ -1469,8 +1576,27 @@ export default function Home() {
           </div>
         </div>
 
+        {activePage !== "dashboard" ? (
+          <MascotBanner
+            compact
+            eyebrow={PAGE_MASCOT_COPY[activePage].eyebrow}
+            title={PAGE_MASCOT_COPY[activePage].title}
+            description={PAGE_MASCOT_COPY[activePage].description}
+            action={PAGE_MASCOT_COPY[activePage].action}
+            onAction={() => navigate(PAGE_MASCOT_COPY[activePage].target)}
+          />
+        ) : null}
+
         {activePage === "dashboard" ? (
           <section className="app-page dashboard-page">
+            <MascotBanner
+              eyebrow="Kiko · Teman hitung harga"
+              title="Harga aman bukan sekadar menaikkan HPP."
+              description={`Saya bantu menghitung ${currentProduct?.name || currentCategory.name}, admin ${effectiveAdminRate}%, layanan ${freeShippingRate}%, iklan, voucher, dan biaya toko sampai laba bersihnya terlihat.`}
+              action="Mulai hitung"
+              onAction={() => navigate("input")}
+            />
+
             <article className="getting-started-strip">
               <span className="getting-started-icon">
                 <AppIcon name="sparkles" size={19} />
@@ -1536,6 +1662,15 @@ export default function Home() {
                 <small>ACOS {adAcos.toFixed(1)}%</small>
               </article>
             </section>
+
+            <MascotBanner
+              compact
+              eyebrow="Jangan salah kategori"
+              title={`${currentProduct?.name || currentCategory.name} memakai admin ${effectiveAdminRate}% dan layanan ${freeShippingRate}%.`}
+              description="Tarif antar-subkategori bisa berbeda. Cari nama produk yang paling spesifik sebelum memakai hasil."
+              action="Periksa produk"
+              onAction={() => navigate("category")}
+            />
 
             <section className="dashboard-grid">
               <article className="panel task-panel">
