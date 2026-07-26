@@ -1419,7 +1419,7 @@ export default function Home() {
           <div className="topbar-actions">
             <span className="verified-pill">
               <i />
-              Basis 1 Agu 2026
+              Data dicek 26 Jul 2026
             </span>
             <button
               className="icon-action guide-action"
