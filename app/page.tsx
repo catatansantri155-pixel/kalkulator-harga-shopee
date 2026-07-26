@@ -428,6 +428,15 @@ function HelpButton({ title, text }: { title: string; text: string }) {
   const [popoverSide, setPopoverSide] = useState<"left" | "right">("right");
   const [popoverWidth, setPopoverWidth] = useState(240);
 
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+
   return (
     <span className="help-wrap">
       <button
@@ -451,29 +460,41 @@ function HelpButton({ title, text }: { title: string; text: string }) {
         ?
       </button>
       {open ? (
-        <span
-          className={`help-popover ${popoverSide}`}
-          role="dialog"
-          aria-label={title}
-          style={{ width: `${popoverWidth}px` }}
-        >
-          <span>
-            <strong>{title}</strong>
-            <small>{text}</small>
-          </span>
+        <>
           <button
-            aria-label="Tutup penjelasan"
-            className="help-close"
+            aria-label={`Tutup penjelasan ${title}`}
+            className="help-modal-backdrop"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               setOpen(false);
             }}
             type="button"
+          />
+          <span
+            className={`help-popover ${popoverSide}`}
+            role="dialog"
+            aria-label={title}
+            style={{ width: `${popoverWidth}px` }}
           >
-            ×
-          </button>
-        </span>
+            <span>
+              <strong>{title}</strong>
+              <small>{text}</small>
+            </span>
+            <button
+              aria-label="Tutup penjelasan"
+              className="help-close"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(false);
+              }}
+              type="button"
+            >
+              ×
+            </button>
+          </span>
+        </>
       ) : null}
     </span>
   );
