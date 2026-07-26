@@ -17,6 +17,22 @@ type PageId =
   | "scenario";
 type SellerType = "nonstar" | "star" | "mall";
 type PriceMode = "auto" | "manual";
+type Theme = "light" | "dark";
+type IconName =
+  | "home"
+  | "input"
+  | "category"
+  | "ads"
+  | "result"
+  | "scenario"
+  | "calculator"
+  | "guide"
+  | "sun"
+  | "moon"
+  | "reset"
+  | "save"
+  | "sparkles"
+  | "arrow";
 
 type Scenario = {
   id: string;
@@ -40,15 +56,159 @@ const NAV_ITEMS: Array<{
   id: PageId;
   label: string;
   shortLabel: string;
-  icon: string;
+  icon: IconName;
 }> = [
-  { id: "dashboard", label: "Dashboard", shortLabel: "Home", icon: "▦" },
-  { id: "input", label: "Input Produk", shortLabel: "Input", icon: "＋" },
-  { id: "category", label: "Kategori & Admin", shortLabel: "Kategori", icon: "◫" },
-  { id: "ads", label: "Kalkulator Iklan", shortLabel: "Iklan", icon: "◎" },
-  { id: "result", label: "Hasil & Rincian", shortLabel: "Hasil", icon: "Rp" },
-  { id: "scenario", label: "Skenario", shortLabel: "Simpan", icon: "◇" },
+  { id: "dashboard", label: "Dashboard", shortLabel: "Home", icon: "home" },
+  { id: "input", label: "Input Produk", shortLabel: "Input", icon: "input" },
+  { id: "category", label: "Kategori & Admin", shortLabel: "Kategori", icon: "category" },
+  { id: "ads", label: "Kalkulator Iklan", shortLabel: "Iklan", icon: "ads" },
+  { id: "result", label: "Hasil & Rincian", shortLabel: "Hasil", icon: "result" },
+  { id: "scenario", label: "Skenario", shortLabel: "Simpan", icon: "scenario" },
 ];
+
+const MOBILE_NAV_ORDER: PageId[] = [
+  "dashboard",
+  "input",
+  "result",
+  "ads",
+  "category",
+];
+
+const ONBOARDING_STEPS: Array<{
+  icon: IconName;
+  eyebrow: string;
+  title: string;
+  description: string;
+  detail: string;
+}> = [
+  {
+    icon: "input",
+    eyebrow: "Langkah 1 dari 3",
+    title: "Mulai dari biaya produk",
+    description:
+      "Masukkan HPP, kemasan, operasional, diskon, dan voucher yang benar-benar ditanggung toko.",
+    detail: "Angka yang tampil sekarang adalah contoh dan aman untuk diganti.",
+  },
+  {
+    icon: "category",
+    eyebrow: "Langkah 2 dari 3",
+    title: "Sesuaikan kategori & program",
+    description:
+      "Pilih kategori terdekat, lalu aktifkan hanya program Shopee yang sedang diikuti produk.",
+    detail: "Tombol tanda tanya menjelaskan fungsi dan dasar setiap biaya.",
+  },
+  {
+    icon: "result",
+    eyebrow: "Langkah 3 dari 3",
+    title: "Baca harga aman dan laba",
+    description:
+      "Aplikasi menghitung harga jual, dana cair, titik impas, biaya iklan, dan laba bersih per item.",
+    detail: "Simpan beberapa skenario untuk membandingkan strategi harga.",
+  },
+];
+
+function AppIcon({
+  name,
+  size = 18,
+}: {
+  name: IconName;
+  size?: number;
+}) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.7,
+  };
+
+  return (
+    <svg
+      aria-hidden="true"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...common}
+    >
+      {name === "home" ? (
+        <>
+          <path d="m3.5 10 8.5-7 8.5 7" />
+          <path d="M5.5 9v11h13V9M9.5 20v-6h5v6" />
+        </>
+      ) : null}
+      {name === "input" ? (
+        <>
+          <rect height="15" rx="3" width="18" x="3" y="5" />
+          <path d="M7 9h10M8 14h4M15.5 12.5v4M13.5 14.5h4" />
+        </>
+      ) : null}
+      {name === "category" ? (
+        <>
+          <rect height="7" rx="2" width="7" x="3" y="3" />
+          <rect height="7" rx="2" width="7" x="14" y="3" />
+          <rect height="7" rx="2" width="7" x="3" y="14" />
+          <rect height="7" rx="2" width="7" x="14" y="14" />
+        </>
+      ) : null}
+      {name === "ads" ? (
+        <>
+          <path d="M4 13.5v-3l11-5v13l-11-5Z" />
+          <path d="m7 15 1.5 5h3L10 14.8M18 9a4.5 4.5 0 0 1 0 6" />
+        </>
+      ) : null}
+      {name === "result" ? (
+        <>
+          <path d="M4 4h16v16H4zM8 8h8M8 12h3M8 16h3" />
+          <path d="M15.5 12.5v5M13.5 15h4" />
+        </>
+      ) : null}
+      {name === "scenario" || name === "save" ? (
+        <>
+          <path d="M5 3h11l3 3v15H5z" />
+          <path d="M8 3v6h8V3M8 17h8v4" />
+        </>
+      ) : null}
+      {name === "calculator" ? (
+        <>
+          <rect height="18" rx="3" width="16" x="4" y="3" />
+          <path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" />
+        </>
+      ) : null}
+      {name === "guide" ? (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.8 9.2a2.3 2.3 0 1 1 3.1 2.2c-.9.4-.9 1.1-.9 1.8M12 17h.01" />
+        </>
+      ) : null}
+      {name === "sun" ? (
+        <>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </>
+      ) : null}
+      {name === "moon" ? (
+        <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" />
+      ) : null}
+      {name === "reset" ? (
+        <>
+          <path d="M4 7v5h5" />
+          <path d="M5.4 16.5a8 8 0 1 0 .2-9.2L4 12" />
+        </>
+      ) : null}
+      {name === "sparkles" ? (
+        <>
+          <path d="m12 3 1.2 3.3L16.5 7.5l-3.3 1.2L12 12l-1.2-3.3-3.3-1.2 3.3-1.2L12 3Z" />
+          <path d="m18.5 13 .7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8ZM6 14l.9 2.4 2.4.9-2.4.9L6 20.5l-.9-2.3-2.4-.9 2.4-.9L6 14Z" />
+        </>
+      ) : null}
+      {name === "arrow" ? (
+        <>
+          <path d="M5 12h14M14 7l5 5-5 5" />
+        </>
+      ) : null}
+    </svg>
+  );
+}
 
 const PAGE_COPY: Record<PageId, { eyebrow: string; title: string; description: string }> = {
   dashboard: {
@@ -346,6 +506,9 @@ function SectionHeading({
 
 export default function Home() {
   const [activePage, setActivePage] = useState<PageId>("dashboard");
+  const [theme, setTheme] = useState<Theme>("dark");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const [mode, setMode] = useState<PriceMode>("auto");
   const [sellerType, setSellerType] = useState<SellerType>("nonstar");
   const [newSellerExempt, setNewSellerExempt] = useState(false);
@@ -437,10 +600,41 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const savedTheme = window.localStorage.getItem(
+      "kalkulator-cuan-theme",
+    ) as Theme | null;
+    const preferredTheme = savedTheme || "dark";
+    const timer = window.setTimeout(() => {
+      setTheme(preferredTheme);
+      if (!window.localStorage.getItem("kalkulator-cuan-onboarding-v2")) {
+        setShowOnboarding(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("kalkulator-cuan-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  const closeOnboarding = (startInput = false) => {
+    window.localStorage.setItem("kalkulator-cuan-onboarding-v2", "done");
+    setShowOnboarding(false);
+    setOnboardingStep(0);
+    if (startInput) navigate("input");
+  };
+
+  const openOnboarding = () => {
+    setOnboardingStep(0);
+    setShowOnboarding(true);
+  };
 
   const getCalculation = (price: number) => {
     const safeQuantity = Math.max(1, quantity);
@@ -809,10 +1003,73 @@ export default function Home() {
   };
 
   const pageCopy = PAGE_COPY[activePage];
+  const onboarding = ONBOARDING_STEPS[onboardingStep];
 
   return (
-    <div className="app-root">
+    <div className="app-root" data-theme={theme}>
       {toast ? <div className="toast">{toast}</div> : null}
+      {showOnboarding ? (
+        <div
+          className="onboarding-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Panduan penggunaan aplikasi"
+        >
+          <article className="onboarding-card">
+            <header>
+              <span className="onboarding-brand">
+                <AppIcon name="calculator" size={19} />
+              </span>
+              <button onClick={() => closeOnboarding()} type="button">
+                Lewati
+              </button>
+            </header>
+            <div className="onboarding-visual">
+              <span>
+                <AppIcon name={onboarding.icon} size={31} />
+              </span>
+              <i />
+              <i />
+            </div>
+            <p className="onboarding-eyebrow">{onboarding.eyebrow}</p>
+            <h2>{onboarding.title}</h2>
+            <p>{onboarding.description}</p>
+            <div className="onboarding-tip">
+              <AppIcon name="sparkles" size={16} />
+              <span>{onboarding.detail}</span>
+            </div>
+            <footer>
+              <div className="onboarding-dots" aria-label="Posisi panduan">
+                {ONBOARDING_STEPS.map((step, index) => (
+                  <i
+                    className={index === onboardingStep ? "active" : ""}
+                    key={step.title}
+                  />
+                ))}
+              </div>
+              {onboardingStep < ONBOARDING_STEPS.length - 1 ? (
+                <button
+                  className="onboarding-next"
+                  onClick={() => setOnboardingStep((current) => current + 1)}
+                  type="button"
+                >
+                  Lanjut
+                  <AppIcon name="arrow" size={16} />
+                </button>
+              ) : (
+                <button
+                  className="onboarding-next"
+                  onClick={() => closeOnboarding(true)}
+                  type="button"
+                >
+                  Mulai isi data
+                  <AppIcon name="arrow" size={16} />
+                </button>
+              )}
+            </footer>
+          </article>
+        </div>
+      ) : null}
 
       <aside className="desktop-sidebar" aria-label="Navigasi aplikasi">
         <button
@@ -820,10 +1077,12 @@ export default function Home() {
           onClick={() => navigate("dashboard")}
           type="button"
         >
-          <span className="brand-mark">KC</span>
+          <span className="brand-mark">
+            <AppIcon name="calculator" size={19} />
+          </span>
           <span>
             <strong>Kalkulator Cuan</strong>
-            <small>Shopee seller workspace</small>
+            <small>Shopee pricing workspace</small>
           </span>
         </button>
 
@@ -836,11 +1095,21 @@ export default function Home() {
               onClick={() => navigate(item.id)}
               type="button"
             >
-              <span>{item.icon}</span>
+              <span>
+                <AppIcon name={item.icon} size={17} />
+              </span>
               {item.label}
             </button>
           ))}
         </nav>
+
+        <button className="sidebar-guide" onClick={openOnboarding} type="button">
+          <AppIcon name="guide" size={17} />
+          <span>
+            <strong>Butuh panduan?</strong>
+            <small>Ulangi tur penggunaan</small>
+          </span>
+        </button>
 
         <div className="sidebar-result">
           <span>Harga aman saat ini</span>
@@ -857,7 +1126,9 @@ export default function Home() {
       <main className="app-shell">
         <header className="topbar">
           <div className="mobile-brand">
-            <span className="brand-mark">KC</span>
+            <span className="brand-mark">
+              <AppIcon name="calculator" size={17} />
+            </span>
             <span>
               <strong>{pageCopy.title}</strong>
               <small>Kalkulator Harga Shopee</small>
@@ -874,11 +1145,36 @@ export default function Home() {
               <i />
               Basis 1 Agu 2026
             </span>
-            <button className="ghost-button" onClick={saveScenario} type="button">
+            <button
+              className="icon-action guide-action"
+              onClick={openOnboarding}
+              type="button"
+              aria-label="Buka panduan"
+            >
+              <AppIcon name="guide" size={17} />
+              <span>Panduan</span>
+            </button>
+            <button
+              className="ghost-button save-action"
+              onClick={saveScenario}
+              type="button"
+            >
+              <AppIcon name="save" size={15} />
               Simpan
             </button>
+            <button
+              aria-label={`Aktifkan mode ${theme === "dark" ? "terang" : "gelap"}`}
+              className="icon-action theme-action"
+              onClick={() =>
+                setTheme((current) => (current === "dark" ? "light" : "dark"))
+              }
+              type="button"
+            >
+              <AppIcon name={theme === "dark" ? "sun" : "moon"} size={17} />
+            </button>
             <button className="dark-button" onClick={reset} type="button">
-              Reset
+              <AppIcon name="reset" size={15} />
+              <span>Reset</span>
             </button>
           </div>
         </header>
@@ -899,6 +1195,26 @@ export default function Home() {
 
         {activePage === "dashboard" ? (
           <section className="app-page dashboard-page">
+            <article className="getting-started-strip">
+              <span className="getting-started-icon">
+                <AppIcon name="sparkles" size={19} />
+              </span>
+              <div>
+                <strong>Baru pertama kali menghitung?</strong>
+                <small>
+                  Ikuti urutan Input → Kategori → Iklan → Hasil. Angka awal
+                  hanya contoh dan bisa langsung diganti.
+                </small>
+              </div>
+              <button onClick={openOnboarding} type="button">
+                Lihat panduan
+              </button>
+              <button onClick={() => navigate("input")} type="button">
+                Mulai input
+                <AppIcon name="arrow" size={15} />
+              </button>
+            </article>
+
             <article className="dashboard-hero">
               <div>
                 <span className="hero-kicker">Rekomendasi harga jual</span>
@@ -1970,18 +2286,26 @@ export default function Home() {
         ) : null}
 
         <nav className="mobile-nav" aria-label="Navigasi bawah">
-          {NAV_ITEMS.filter((item) => item.id !== "scenario").map((item) => (
-            <button
-              aria-current={activePage === item.id ? "page" : undefined}
-              className={activePage === item.id ? "active" : ""}
-              key={item.id}
-              onClick={() => navigate(item.id)}
-              type="button"
-            >
-              <span>{item.icon}</span>
-              {item.shortLabel}
-            </button>
-          ))}
+          {MOBILE_NAV_ORDER.map((pageId) => {
+            const item = NAV_ITEMS.find((navItem) => navItem.id === pageId);
+            if (!item) return null;
+            return (
+              <button
+                aria-current={activePage === item.id ? "page" : undefined}
+                className={`${activePage === item.id ? "active" : ""} ${
+                  item.id === "result" ? "primary-nav" : ""
+                }`}
+                key={item.id}
+                onClick={() => navigate(item.id)}
+                type="button"
+              >
+                <span>
+                  <AppIcon name={item.icon} size={17} />
+                </span>
+                {item.shortLabel}
+              </button>
+            );
+          })}
         </nav>
       </main>
     </div>

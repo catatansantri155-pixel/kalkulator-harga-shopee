@@ -14,7 +14,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   name: "kalkulator-harga-shopee",
   main: "./worker/index.ts",
-  compatibility_date: "2026-07-26",
+  // Keep this aligned with the newest Workers runtime bundled by local preview.
+  // The fee reference date in the UI is independent from this runtime setting.
+  compatibility_date: "2026-05-22",
   compatibility_flags: ["nodejs_compat"],
   assets: {
     binding: "ASSETS",
