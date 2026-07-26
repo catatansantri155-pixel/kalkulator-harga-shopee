@@ -1,0 +1,3 @@
+# Aplikasi saat ini tidak memerlukan secret runtime.
+# Jangan menyimpan CLOUDFLARE_API_TOKEN di file ini atau di repository.
+# Token deployment hanya disimpan sebagai GitHub Actions secret.
