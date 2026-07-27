@@ -4292,3 +4292,280 @@ html[data-theme="dark"] .toast {
     animation: none;
   }
 }
+
+/* Unified anchored help and topbar actions. Kept last to override legacy
+   breakpoint rules without allowing popovers to affect page layout. */
+
+.help-popover.help-floating {
+  position: fixed;
+  z-index: 180;
+  right: auto;
+  bottom: auto;
+  display: flex;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  align-items: flex-start;
+  gap: 9px;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--line) 86%, var(--accent) 14%);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--accent) 3%, var(--surface)),
+      var(--surface)
+    );
+  box-shadow: 0 15px 38px rgba(0, 0, 0, 0.2);
+  color: var(--ink);
+  padding: 11px 11px 11px 12px;
+  text-align: left;
+  transform: none;
+  animation: help-float-in 150ms ease both;
+}
+
+.help-popover.help-floating > span {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.help-popover.help-floating strong {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 570;
+  line-height: 1.35;
+}
+
+.help-popover.help-floating small {
+  color: var(--ink-soft);
+  font-size: 8.5px;
+  font-weight: 390;
+  line-height: 1.55;
+}
+
+.help-popover.help-floating .help-close {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.help-popover.help-floating .help-close:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft));
+  color: var(--ink);
+}
+
+.help-popover.help-floating::before {
+  position: absolute;
+  display: block;
+  width: 9px;
+  height: 9px;
+  border: 0;
+  background: var(--surface);
+  content: "";
+}
+
+.help-popover.help-floating.anchor-right::before {
+  top: var(--help-arrow-offset);
+  left: -5px;
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.help-popover.help-floating.anchor-left::before {
+  top: var(--help-arrow-offset);
+  right: -5px;
+  left: auto;
+  border-top: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.help-popover.help-floating.anchor-below::before {
+  top: -5px;
+  left: var(--help-arrow-offset);
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.help-popover.help-floating.anchor-above::before {
+  bottom: -5px;
+  left: var(--help-arrow-offset);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes help-float-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.save-action {
+  gap: 6px;
+}
+
+.reset-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.reset-menu {
+  position: absolute;
+  z-index: 170;
+  top: calc(100% + 9px);
+  right: 0;
+  display: grid;
+  width: min(270px, calc(100vw - 24px));
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--surface) 98%, transparent);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+  padding: 7px;
+  backdrop-filter: blur(18px);
+}
+
+.reset-menu::before {
+  position: absolute;
+  top: -5px;
+  right: 18px;
+  width: 9px;
+  height: 9px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.reset-menu-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px 6px;
+}
+
+.reset-menu-heading strong {
+  color: var(--ink);
+  font-size: 10px;
+}
+
+.reset-menu-heading small {
+  color: var(--ink-soft);
+  font-size: 8px;
+  font-weight: 390;
+}
+
+.reset-menu > button {
+  display: grid;
+  min-height: 56px;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink);
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding: 7px;
+  text-align: left;
+}
+
+.reset-menu > button:hover,
+.reset-menu > button:focus-visible {
+  background: var(--surface-soft);
+}
+
+.reset-menu > button > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reset-menu > button strong {
+  font-size: 9px;
+  font-weight: 560;
+}
+
+.reset-menu > button small {
+  color: var(--ink-soft);
+  font-size: 8px;
+  font-weight: 390;
+  line-height: 1.35;
+}
+
+.reset-option-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.reset-option-icon.zero {
+  background: color-mix(in srgb, var(--red) 10%, var(--surface-soft));
+  color: var(--red);
+}
+
+.reset-option-icon.template {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-soft));
+  color: var(--green);
+}
+
+@media (max-width: 720px) {
+  .help-popover.help-floating {
+    position: fixed;
+    z-index: 180;
+    right: auto;
+    bottom: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow: visible;
+    border-radius: 14px;
+    padding: 11px 11px 11px 12px;
+    transform: none;
+  }
+
+  .save-action {
+    display: inline-flex;
+    width: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 11px;
+    padding: 0;
+  }
+
+  .save-action > span {
+    display: none;
+  }
+
+  .reset-menu {
+    position: fixed;
+    top: calc(62px + env(safe-area-inset-top));
+    right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .help-popover.help-floating {
+    animation: none;
+  }
+}

@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
 import {
   PRODUCT_FEES,
   searchProductFees,
@@ -425,15 +433,16 @@ const DEFAULT_PRODUCT =
 
 function HelpButton({ title, text }: { title: string; text: string }) {
   const [open, setOpen] = useState(false);
-  const [popoverSide, setPopoverSide] = useState<"left" | "right">("right");
-  const [popoverWidth, setPopoverWidth] = useState(220);
-  const [mobileAnchor, setMobileAnchor] = useState<{
+  const [anchor, setAnchor] = useState<{
+    placement: "right" | "left" | "above" | "below";
     left: number;
     top: number;
-    placement: "above" | "below";
     width: number;
+    arrowOffset: number;
   } | null>(null);
   const helpRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -443,7 +452,8 @@ function HelpButton({ title, text }: { title: string; text: string }) {
     const closeOutside = (event: PointerEvent) => {
       if (
         helpRef.current &&
-        !helpRef.current.contains(event.target as Node)
+        !helpRef.current.contains(event.target as Node) &&
+        !popoverRef.current?.contains(event.target as Node)
       ) {
         setOpen(false);
       }
@@ -461,6 +471,93 @@ function HelpButton({ title, text }: { title: string; text: string }) {
     };
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open || !anchor || !popoverRef.current || !triggerRef.current) return;
+
+    const gap = 10;
+    const edge = 12;
+    const trigger = triggerRef.current.getBoundingClientRect();
+    const popoverWidth = popoverRef.current.offsetWidth;
+    const popoverHeight = popoverRef.current.offsetHeight;
+    const centerX = trigger.left + trigger.width / 2;
+    const centerY = trigger.top + trigger.height / 2;
+    let placement = anchor.placement;
+    let left = anchor.left;
+    let top = anchor.top;
+
+    if (placement === "right" || placement === "left") {
+      left =
+        placement === "right"
+          ? trigger.right + gap
+          : trigger.left - gap - popoverWidth;
+      top = Math.min(
+        window.innerHeight - popoverHeight - edge,
+        Math.max(edge, centerY - popoverHeight / 2),
+      );
+    } else {
+      const roomAbove = trigger.top - edge - gap;
+      const roomBelow = window.innerHeight - trigger.bottom - edge - gap;
+      if (
+        placement === "below" &&
+        popoverHeight > roomBelow &&
+        roomAbove > roomBelow
+      ) {
+        placement = "above";
+      } else if (
+        placement === "above" &&
+        popoverHeight > roomAbove &&
+        roomBelow > roomAbove
+      ) {
+        placement = "below";
+      }
+      left = Math.min(
+        window.innerWidth - popoverWidth - edge,
+        Math.max(edge, centerX - popoverWidth / 2),
+      );
+      top =
+        placement === "below"
+          ? trigger.bottom + gap
+          : trigger.top - gap - popoverHeight;
+      top = Math.min(
+        window.innerHeight - popoverHeight - edge,
+        Math.max(edge, top),
+      );
+    }
+
+    const arrowOffset =
+      placement === "right" || placement === "left"
+        ? Math.min(
+            popoverHeight - 14,
+            Math.max(14, centerY - top),
+          )
+        : Math.min(
+            popoverWidth - 14,
+            Math.max(14, centerX - left),
+          );
+
+    if (
+      placement !== anchor.placement ||
+      Math.abs(left - anchor.left) > 0.5 ||
+      Math.abs(top - anchor.top) > 0.5 ||
+      Math.abs(arrowOffset - anchor.arrowOffset) > 0.5
+    ) {
+      setAnchor((current) =>
+        current
+          ? { ...current, placement, left, top, arrowOffset }
+          : current,
+      );
+    }
+  }, [anchor, open]);
+
+  const popoverStyle = anchor
+    ? ({
+        left: `${anchor.left}px`,
+        top: `${anchor.top}px`,
+        width: `${anchor.width}px`,
+        "--help-arrow-offset": `${anchor.arrowOffset}px`,
+      } as CSSProperties)
+    : undefined;
+
   return (
     <span className="help-wrap" ref={helpRef}>
       <button
@@ -470,73 +567,100 @@ function HelpButton({ title, text }: { title: string; text: string }) {
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          const bounds = event.currentTarget.getBoundingClientRect();
-          const roomRight = window.innerWidth - bounds.right - 14;
-          const roomLeft = bounds.left - 14;
-          const nextSide = roomRight >= roomLeft ? "right" : "left";
-          const availableRoom = nextSide === "right" ? roomRight : roomLeft;
-          const isMobile = window.matchMedia("(max-width: 720px)").matches;
-
-          if (isMobile) {
-            const width = Math.min(220, window.innerWidth - 24);
-            const halfWidth = width / 2;
-            const triggerCenter = bounds.left + bounds.width / 2;
-            setMobileAnchor({
-              left: Math.min(
-                window.innerWidth - halfWidth - 12,
-                Math.max(halfWidth + 12, triggerCenter),
-              ),
-              top: bounds.top > 160 ? bounds.top - 9 : bounds.bottom + 9,
-              placement: bounds.top > 160 ? "above" : "below",
-              width,
-            });
-          } else {
-            setMobileAnchor(null);
-            setPopoverSide(nextSide);
-            setPopoverWidth(
-              Math.min(230, Math.max(156, availableRoom - 8)),
-            );
+          if (open) {
+            setOpen(false);
+            return;
           }
-          setOpen((current) => !current);
+
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const gap = 10;
+          const edge = 12;
+          const desiredWidth = 230;
+          const minimumSideWidth = 168;
+          const roomRight = window.innerWidth - bounds.right - edge - gap;
+          const roomLeft = bounds.left - edge - gap;
+          const centerX = bounds.left + bounds.width / 2;
+          const centerY = bounds.top + bounds.height / 2;
+          const canUseSide = Math.max(roomRight, roomLeft) >= minimumSideWidth;
+          let placement: "right" | "left" | "above" | "below";
+          let width: number;
+          let left: number;
+          let top: number;
+
+          if (canUseSide) {
+            placement = roomRight >= roomLeft ? "right" : "left";
+            const sideRoom = placement === "right" ? roomRight : roomLeft;
+            width = Math.min(desiredWidth, sideRoom);
+            left =
+              placement === "right"
+                ? bounds.right + gap
+                : bounds.left - gap - width;
+            top = Math.max(edge, centerY - 42);
+          } else {
+            width = Math.min(
+              desiredWidth,
+              window.innerWidth - edge * 2,
+            );
+            placement =
+              window.innerHeight - bounds.bottom >= bounds.top
+                ? "below"
+                : "above";
+            left = Math.min(
+              window.innerWidth - width - edge,
+              Math.max(edge, centerX - width / 2),
+            );
+            top =
+              placement === "below"
+                ? bounds.bottom + gap
+                : Math.max(edge, bounds.top - gap - 84);
+          }
+
+          setAnchor({
+            placement,
+            left,
+            top,
+            width,
+            arrowOffset:
+              placement === "right" || placement === "left"
+                ? 42
+                : centerX - left,
+          });
+          setOpen(true);
         }}
+        ref={triggerRef}
         type="button"
       >
         ?
       </button>
-      {open ? (
-        <span
-          className={`help-popover ${
-            mobileAnchor
-              ? `mobile-anchor ${mobileAnchor.placement}`
-              : popoverSide
-          }`}
-          role="dialog"
-          aria-label={title}
-          style={{
-            width: `${mobileAnchor?.width ?? popoverWidth}px`,
-            ...(mobileAnchor
-              ? { left: `${mobileAnchor.left}px`, top: `${mobileAnchor.top}px` }
-              : {}),
-          }}
-        >
-          <span>
-            <strong>{title}</strong>
-            <small>{text}</small>
-          </span>
-          <button
-            aria-label="Tutup penjelasan"
-            className="help-close"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-            }}
-            type="button"
-          >
-            ×
-          </button>
-        </span>
-      ) : null}
+      {open && anchor && typeof document !== "undefined"
+        ? createPortal(
+            <span
+              aria-label={title}
+              className={`help-popover help-floating anchor-${anchor.placement}`}
+              ref={popoverRef}
+              role="dialog"
+              style={popoverStyle}
+            >
+              <span>
+                <strong>{title}</strong>
+                <small>{text}</small>
+              </span>
+              <button
+                aria-label="Tutup penjelasan"
+                className="help-close"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setOpen(false);
+                }}
+                type="button"
+              >
+                ×
+              </button>
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   );
 }
@@ -957,6 +1081,8 @@ export default function Home() {
     }
   });
   const [toast, setToast] = useState("");
+  const [showResetMenu, setShowResetMenu] = useState(false);
+  const resetMenuRef = useRef<HTMLDivElement>(null);
 
   const currentCategory =
     CATEGORY_PRESETS.find((item) => item.id === selectedCategory) ||
@@ -964,6 +1090,9 @@ export default function Home() {
   const currentProduct = PRODUCT_FEES.find(
     (product) => product.id === selectedProductId,
   );
+  const activeProductName =
+    currentProduct?.name ||
+    (selectedCategory ? currentCategory.name : "Belum memilih produk");
 
   const adBudgetTotal = adDailyBudget * Math.max(1, adDays);
   const adCostPerOrder = adOrders > 0 ? adActualSpend / adOrders : 0;
@@ -1023,6 +1152,27 @@ export default function Home() {
     const timer = window.setTimeout(() => setToast(""), 2200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!showResetMenu) return;
+    const closeResetMenu = (event: PointerEvent) => {
+      if (
+        resetMenuRef.current &&
+        !resetMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowResetMenu(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowResetMenu(false);
+    };
+    document.addEventListener("pointerdown", closeResetMenu);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeResetMenu);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showResetMenu]);
 
   const closeOnboarding = (startInput = false) => {
     window.localStorage.setItem("kalkulator-cuan-onboarding-v2", "done");
@@ -1189,9 +1339,9 @@ export default function Home() {
   const completeness = [
     hpp > 0,
     selectedCategory.length > 0,
-    adminRate >= 0,
+    selectedCategory.length > 0 && adminRate >= 0,
     !allocateAds || adOrders > 0,
-    targetMargin > 0 || mode === "manual",
+    mode === "manual" ? manualPrice > 0 : targetMargin > 0,
   ].filter(Boolean).length;
 
   const applyProduct = (product: ProductFee) => {
@@ -1240,7 +1390,7 @@ export default function Home() {
     setToast("Preset kategori diterapkan");
   };
 
-  const reset = () => {
+  const resetToTemplate = () => {
     setMode("auto");
     setSellerType("nonstar");
     setNewSellerExempt(false);
@@ -1279,7 +1429,51 @@ export default function Home() {
     setAdClicks(320);
     setAdImpressions(18000);
     setAllocateAds(true);
-    setToast("Semua input berhasil direset");
+    setShowResetMenu(false);
+    setToast("Template contoh siap diubah");
+  };
+
+  const resetToZero = () => {
+    setMode("manual");
+    setSellerType("nonstar");
+    setNewSellerExempt(false);
+    setSelectedCategory("");
+    setSelectedProductId("");
+    setAdminRate(0);
+    setHpp(0);
+    setPacking(0);
+    setOperational(0);
+    setOtherCost(0);
+    setManualPrice(0);
+    setTargetMargin(0);
+    setRounding(0);
+    setQuantity(0);
+    setProductDiscount(0);
+    setVoucher(0);
+    setFreeShippingEnabled(false);
+    setFreeShippingRate(0);
+    setSpecialSize(false);
+    setPromoEnabled(false);
+    setAffiliateRate(0);
+    setAffiliateVatEnabled(false);
+    setAffiliateVatRate(0);
+    setPremiumRate(0);
+    setReturnReserveRate(0);
+    setPreorderEnabled(false);
+    setProcessEnabled(false);
+    setPphEnabled(false);
+    setLiveEnabled(false);
+    setLivePrice(0);
+    setAdDailyBudget(0);
+    setAdDays(0);
+    setAdActualSpend(0);
+    setAdRevenue(0);
+    setAdOrders(0);
+    setAdClicks(0);
+    setAdImpressions(0);
+    setAllocateAds(false);
+    setShowResetMenu(false);
+    setToast("Semua angka dan program dinolkan");
   };
 
   const getScenarioData = () => ({
@@ -1326,9 +1520,7 @@ export default function Home() {
   const saveScenario = () => {
     const next: Scenario = {
       id: `${Date.now()}`,
-      name: `${currentProduct?.name || currentCategory.name} ${
-        savedScenarios.length + 1
-      }`,
+      name: `${activeProductName} ${savedScenarios.length + 1}`,
       savedAt: new Date().toISOString(),
       data: getScenarioData(),
     };
@@ -1415,8 +1607,8 @@ export default function Home() {
   const exportCsv = () => {
     const rows = [
       ["Komponen", "Nilai per item"],
-      ["Produk", currentProduct?.name || "Preset kategori umum"],
-      ["Kategori", currentCategory.name],
+      ["Produk", activeProductName],
+      ["Kategori", selectedCategory ? currentCategory.name : "Belum dipilih"],
       ["Tarif admin", `${effectiveAdminRate}%`],
       ["Tarif layanan Gratis Ongkir XTRA", `${freeShippingRate}%`],
       ["Harga jual", result.price],
@@ -1561,7 +1753,7 @@ export default function Home() {
           <span>Harga aman saat ini</span>
           <strong>{rupiah.format(sellingPrice)}</strong>
           <small>
-            {currentProduct?.name || currentCategory.name} · Admin{" "}
+            {activeProductName} · Admin{" "}
             {effectiveAdminRate}% · Layanan {freeShippingRate}%
           </small>
           <button onClick={() => navigate("result")} type="button">
@@ -1600,12 +1792,14 @@ export default function Home() {
               <span>Panduan</span>
             </button>
             <button
+              aria-label="Simpan skenario saat ini"
               className="ghost-button save-action"
               onClick={saveScenario}
+              title="Simpan skenario saat ini"
               type="button"
             >
               <AppIcon name="save" size={15} />
-              Simpan
+              <span>Simpan</span>
             </button>
             <button
               aria-label={`Aktifkan mode ${theme === "dark" ? "terang" : "gelap"}`}
@@ -1617,10 +1811,54 @@ export default function Home() {
             >
               <AppIcon name={theme === "dark" ? "sun" : "moon"} size={17} />
             </button>
-            <button className="dark-button" onClick={reset} type="button">
-              <AppIcon name="reset" size={15} />
-              <span>Reset</span>
-            </button>
+            <div className="reset-menu-wrap" ref={resetMenuRef}>
+              <button
+                aria-expanded={showResetMenu}
+                aria-haspopup="menu"
+                aria-label="Buka pilihan reset"
+                className="dark-button"
+                onClick={() => setShowResetMenu((current) => !current)}
+                title="Pilih cara mereset input"
+                type="button"
+              >
+                <AppIcon name="reset" size={15} />
+                <span>Reset</span>
+              </button>
+              {showResetMenu ? (
+                <div
+                  aria-label="Pilihan reset"
+                  className="reset-menu"
+                  role="menu"
+                >
+                  <div className="reset-menu-heading">
+                    <strong>Pilih reset</strong>
+                    <small>Skenario yang sudah disimpan tetap aman.</small>
+                  </div>
+                  <button onClick={resetToZero} role="menuitem" type="button">
+                    <span className="reset-option-icon zero">
+                      <AppIcon name="reset" size={16} />
+                    </span>
+                    <span>
+                      <strong>Kosongkan semua</strong>
+                      <small>Set semua angka dan program ke 0.</small>
+                    </span>
+                  </button>
+                  <button
+                    onClick={resetToTemplate}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <span className="reset-option-icon template">
+                      <AppIcon name="sparkles" size={16} />
+                    </span>
+                    <span>
+                      <strong>Muat contoh template</strong>
+                      <small>Isi contoh lengkap, lalu bebas diubah.</small>
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 
@@ -1654,7 +1892,7 @@ export default function Home() {
             <MascotBanner
               eyebrow="Kiko · Teman hitung harga"
               title="Harga aman bukan sekadar menaikkan HPP."
-              description={`Saya bantu menghitung ${currentProduct?.name || currentCategory.name}, admin ${effectiveAdminRate}%, layanan ${freeShippingRate}%, iklan, voucher, dan biaya toko sampai laba bersihnya terlihat.`}
+              description={`Saya bantu menghitung ${activeProductName}, admin ${effectiveAdminRate}%, layanan ${freeShippingRate}%, iklan, voucher, dan biaya toko sampai laba bersihnya terlihat.`}
               action="Mulai hitung"
               onAction={() => navigate("input")}
             />
@@ -1691,7 +1929,7 @@ export default function Home() {
               </div>
               <div className="hero-side">
                 <span>Produk aktif</span>
-                <strong>{currentProduct?.name || currentCategory.name}</strong>
+                <strong>{activeProductName}</strong>
                 <small>
                   Admin {effectiveAdminRate}% · Layanan {freeShippingRate}% · Iklan{" "}
                   {rupiah.format(allocatedAdCost)}/pesanan
@@ -1728,7 +1966,7 @@ export default function Home() {
             <MascotBanner
               compact
               eyebrow="Jangan salah kategori"
-              title={`${currentProduct?.name || currentCategory.name} memakai admin ${effectiveAdminRate}% dan layanan ${freeShippingRate}%.`}
+              title={`${activeProductName} memakai admin ${effectiveAdminRate}% dan layanan ${freeShippingRate}%.`}
               description="Tarif antar-subkategori bisa berbeda. Cari nama produk yang paling spesifik sebelum memakai hasil."
               action="Periksa produk"
               onAction={() => navigate("category")}
@@ -1754,9 +1992,7 @@ export default function Home() {
                       page: "category" as PageId,
                       number: "02",
                       title: "Cari produk & kategori",
-                      text: `${
-                        currentProduct?.name || currentCategory.name
-                      } · admin ${adminRate}% · layanan ${freeShippingRate}%`,
+                      text: `${activeProductName} · admin ${adminRate}% · layanan ${freeShippingRate}%`,
                       done: Boolean(selectedCategory),
                     },
                     {
@@ -2123,12 +2359,16 @@ export default function Home() {
             />
 
             <article className="category-summary panel">
-              <div className="category-symbol">{currentCategory.icon}</div>
+              <div className="category-symbol">
+                {selectedCategory ? currentCategory.icon : "—"}
+              </div>
               <div>
                 <span>Produk & kategori terpilih</span>
-                <strong>{currentProduct?.name || currentCategory.name}</strong>
+                <strong>{activeProductName}</strong>
                 <small>
-                  {currentProduct?.path || currentCategory.examples}
+                  {selectedCategory
+                    ? currentProduct?.path || currentCategory.examples
+                    : "Cari produk untuk menerapkan tarif otomatis."}
                 </small>
               </div>
               <div className="category-rate">
@@ -2485,7 +2725,7 @@ export default function Home() {
                 <section className="summary-grid">
                   <article>
                     <span>Produk</span>
-                    <strong>{currentProduct?.name || currentCategory.name}</strong>
+                    <strong>{activeProductName}</strong>
                     <small>
                       Admin {effectiveAdminRate}% · layanan {freeShippingRate}%
                     </small>
@@ -2585,9 +2825,7 @@ export default function Home() {
                   <ResultRow
                     label={`Administrasi (${effectiveAdminRate}%)`}
                     value={result.admin}
-                    help={`${
-                      currentProduct?.name || currentCategory.name
-                    }; tarif tetap dapat disesuaikan mengikuti subkategori di Seller Centre.`}
+                    help={`${activeProductName}; tarif tetap dapat disesuaikan mengikuti subkategori di Seller Centre.`}
                   />
                   <ResultRow
                     label={`Gratis Ongkir XTRA (${freeShippingRate}%)`}
@@ -2667,7 +2905,7 @@ export default function Home() {
                   </p>
                   <div className="save-preview">
                     <span>
-                      {currentProduct?.name || currentCategory.name}
+                      {activeProductName}
                       <small>Produk</small>
                     </span>
                     <span>
